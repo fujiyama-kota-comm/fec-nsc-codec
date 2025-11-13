@@ -23,7 +23,6 @@ int main() {
 
   int K = nsc_info_len;
   int N = nsc_code_len;
-  int symbols = N / 2;
 
   int *data = malloc(sizeof(int) * K);
   int *code = malloc(sizeof(int) * N);
