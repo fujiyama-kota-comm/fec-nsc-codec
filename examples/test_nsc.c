@@ -37,6 +37,8 @@ double bpsk_ber(double EbN0_linear) {
  * ============================================================== */
 int main() {
 
+  printf("fec-nsc-codec version %s\n", NSC_VERSION);
+
   /* ----------------------------------------------------------
    * Create results/ directory (Windows + Linux compatible)
    * ---------------------------------------------------------- */
