@@ -9,11 +9,11 @@ SRC = \
 
 OBJ = $(SRC:.c=.o)
 
-TEST_SRC = examples/test_nsc.c
+TEST_SRC = examples/main_test.c
 TEST_OBJ = $(TEST_SRC:.c=.o)
 
 BIN_DIR = bin
-TARGET_NAME = test_nsc
+TARGET_NAME = main_test
 
 # OS によって実行ファイル名を切り替え
 ifeq ($(OS),Windows_NT)
