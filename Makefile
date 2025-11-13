@@ -1,16 +1,27 @@
-CC = gcc
-CFLAGS = -O2 -Wall -std=c99 -Iinclude
+CC      = gcc
+CFLAGS  = -O2 -Wall -std=c99 -Iinclude
 LDFLAGS = -lm
 
-SRC = src/nsc_encoder.c src/nsc_decoder.c src/trellis.c
+# NSC library sources
+SRC = \
+    src/nsc_encoder.c \
+    src/nsc_decoder.c \
+    src/trellis.c
+
 OBJ = $(SRC:.c=.o)
 
+# Test program
 TEST_SRC = examples/test_nsc.c
 TEST_OBJ = $(TEST_SRC:.c=.o)
 
-TARGET = test_nsc
+BIN_DIR = bin
+TARGET = $(BIN_DIR)/test_nsc
 
-all: $(TARGET)
+all: $(BIN_DIR) $(TARGET)
+
+# Windows + Linux 両対応 mkdir（Windows優先）
+$(BIN_DIR):
+	@if not exist $(BIN_DIR) mkdir $(BIN_DIR)
 
 $(TARGET): $(OBJ) $(TEST_OBJ)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
