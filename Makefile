@@ -1,19 +1,35 @@
 CC = gcc
 CFLAGS = -O2 -Wall -Iinclude
-LIBS = -lm
 
-SRCS = src/nsc_encoder.c src/nsc_decoder.c src/trellis.c
+SRC = src/nsc_encoder.c src/nsc_decoder.c src/trellis.c examples/test_nsc.c
+OBJ = $(SRC:.c=.o)
 
-BIN = bin
-TEST = $(BIN)/test_nsc
+BIN_DIR = bin
+TARGET = $(BIN_DIR)/test_nsc
 
-all: $(BIN) $(TEST)
+# ------------------------------------------------------------
+# Build rules
+# ------------------------------------------------------------
+all: $(TARGET)
 
-$(BIN):
-	mkdir -p $(BIN)
+$(BIN_DIR):
+	@if not exist $(BIN_DIR) mkdir $(BIN_DIR)
 
-$(TEST): $(SRCS) examples/test_nsc.c
-	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
+# Link → 必ず bin/test_nsc に出力する
+$(TARGET): $(OBJ) | $(BIN_DIR)
+	$(CC) $(CFLAGS) -o $@ $^
 
+# Compile .c → .o
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# ------------------------------------------------------------
+# Clean
+# ------------------------------------------------------------
 clean:
-	rm -rf $(BIN)
+	del /Q src\*.o 2>nul || true
+	del /Q examples\*.o 2>nul || true
+	del /Q include\*.o 2>nul || true
+	del /Q $(BIN_DIR)\*.exe 2>nul || true
+
+.PHONY: all clean

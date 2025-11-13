@@ -117,8 +117,6 @@ Example BER curve for rate-1/2 NSC (4-state Viterbi, AWGN, BPSK):
 images/ber_curve.png
 ```
 
-(You can add your own PNG graph.)
-
 ---
 
 ## 📂 Source Code Structure
