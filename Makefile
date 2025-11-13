@@ -1,5 +1,6 @@
 CC = gcc
 CFLAGS = -O2 -Wall -std=c99 -Iinclude
+LDFLAGS = -lm
 
 SRC = src/nsc_encoder.c src/nsc_decoder.c src/trellis.c
 OBJ = $(SRC:.c=.o)
@@ -12,7 +13,7 @@ TARGET = test_nsc
 all: $(TARGET)
 
 $(TARGET): $(OBJ) $(TEST_OBJ)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
