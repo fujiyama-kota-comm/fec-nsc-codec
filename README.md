@@ -98,14 +98,7 @@ Run BER simulation:
 
 Example output:
 
-```
-EbN0_dB, BER_soft, BER_hard
-0.0, 0.152300, 0.238100
-1.0, 0.081200, 0.190400
-2.0, 0.024800, 0.120500
-3.0, 0.004900, 0.052300
-...
-```
+![BER result](results/ber_result.csv)
 
 ---
 
