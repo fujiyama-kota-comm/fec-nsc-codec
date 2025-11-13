@@ -52,7 +52,7 @@ double bpsk_ber(double EbN0_linear) {
  *  - Rate=1/2 NSC encoder/decoder に対する BER 実験
  *  - チャネル：AWGN (BPSK 変調)
  *  - 評価：Soft-decision / Hard-decision Viterbi の BER
- *  - 出力：results/ber_result.csv に保存
+ *  - 出力：results/nsc_ber.csv に保存
  *
  *  CSV フォーマット：
  *      EbN0_dB, BER_soft, BER_hard, BER_bpsk
@@ -81,9 +81,9 @@ int main() {
   /* ----------------------------------------------------------------------
    * Open CSV file
    * ------------------------------------------------------------------ */
-  FILE *fp = fopen("results/ber_result.csv", "w");
+  FILE *fp = fopen("results/nsc_ber.csv", "w");
   if (!fp) {
-    fprintf(stderr, "Cannot open results/ber_result.csv\n");
+    fprintf(stderr, "Cannot open results/nsc_ber.csv\n");
     return -1;
   }
   fprintf(fp, "EbN0_dB,BER_soft,BER_hard,BER_bpsk\n");

@@ -38,7 +38,7 @@ Current version: **0.1.0**
 To see the program version:
 
 ```sh
-./test_nsc
+./nsc_ber
 ```
 
 Output example:
@@ -53,11 +53,14 @@ fec-nsc-codec version 0.1.0
 
 ```
 fec-nsc-codec
-├── src/                 # Encoder/decoder implementation
-├── include/             # Header files
-├── examples/            # Test & BER simulation
-├── Makefile             # Build script
-└── .github/workflows    # CI pipeline
+├── src/                 # Encoder/decoder core implementation
+├── include/             # Public header files
+├── mains/               # Test programs & BER simulation
+├── results/             # Generated BER results
+├── images/              # BER plots and diagrams
+├── .github/workflows/   # CI pipeline (GCC build)
+├── Makefile             # Build rules
+└── README.md            # This document
 ```
 
 ---
@@ -76,7 +79,7 @@ fec-nsc-codec
 - Trellis defined in `trellis.h`
 
 ### ✔ AWGN BER Simulation
-The program `examples/test_nsc.c` evaluates BER vs Eb/N0
+The program `mains/nsc_ber.c` evaluates BER vs Eb/N0
 for both hard- and soft-decision decoding.
 
 ---
@@ -99,7 +102,7 @@ make
 Generated binary:
 
 ```
-test_nsc   # BER simulation program
+nsc_ber   # BER simulation program
 ```
 
 Clean build:
@@ -115,7 +118,7 @@ make clean
 Run BER simulation:
 
 ```sh
-./test_nsc
+./nsc_ber
 ```
 
 Example BER result (CSV):
@@ -131,7 +134,7 @@ results/ber_result.csv
 Example BER curve for rate-1/2 NSC
 (4-state Viterbi, AWGN, BPSK):
 
-![BER curve](images/ber_curve.png)
+![BER curve](images/nsc_ber.png)
 
 ---
 
@@ -151,10 +154,19 @@ Example BER curve for rate-1/2 NSC
 | `nsc_decoder.h` | Decoder API |
 | `trellis.h` | Trellis constants |
 
-### examples/
+### mains/
 | File | Description |
 |------|-------------|
-| `test_nsc.c` | BER simulation under AWGN |
+| `nsc_ber.c` | BER simulation under AWGN |
+
+---
+
+## 🔒 Confidentiality Notice
+
+All source code in this repository was developed independently
+based only on public standards (3GPP) and academic knowledge.
+No confidential or proprietary information from any company,
+internship, or NDA-protected source is used.
 
 ---
 
