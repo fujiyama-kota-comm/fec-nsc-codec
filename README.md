@@ -1,9 +1,11 @@
 # fec-nsc-codec
+
+![Build](https://github.com/fujiyama-kota-comm/fec-nsc-codec/actions/workflows/c-cpp.yml/badge.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+
 C implementation of **Non-Systematic Convolutional Codes (NSC)** with **Viterbi decoding**
 for Forward Error Correction (FEC).
 Supports **hard-decision** and **soft-decision (LLR)** decoding.
-
-![C/C++ CI](https://github.com/fujiyama-kota-comm/fec-nsc-codec/actions/workflows/c-cpp.yml/badge.svg)
 
 ---
 

@@ -3,33 +3,51 @@
 #include <stdlib.h>
 #include <time.h>
 
+#ifdef _WIN32
+#include <direct.h> // ← Windows の _mkdir 用
+#else
+#include <sys/stat.h>
+#include <sys/types.h>
+#endif
+
 #include "nsc_decoder.h"
 #include "nsc_encoder.h"
 
 #define PI 3.14159265358979323846
 
-/* Gaussian noise generator (Box–Muller) */
+/* --------------------------------------------------------------
+ * Gaussian noise generator (Box–Muller)
+ * -------------------------------------------------------------- */
 double randn() {
   double u1 = (rand() + 1.0) / (RAND_MAX + 2.0);
   double u2 = (rand() + 1.0) / (RAND_MAX + 2.0);
   return sqrt(-2.0 * log(u1)) * cos(2.0 * PI * u2);
 }
 
-/* 理論 BPSK BER = Q( sqrt(2 Eb/N0) ) */
+/* --------------------------------------------------------------
+ * BPSK 理論 BER: Q( sqrt(2 Eb/N0) )
+ * -------------------------------------------------------------- */
 double bpsk_ber(double EbN0_linear) {
   return 0.5 * erfc(sqrt(2.0 * EbN0_linear) / sqrt(2.0));
 }
 
+/* ==============================================================
+ * MAIN
+ * ============================================================== */
 int main() {
 
-  /* results フォルダを作成（Windows / Linux 共通） */
+  /* ----------------------------------------------------------
+   * Create results/ directory (Windows + Linux compatible)
+   * ---------------------------------------------------------- */
 #ifdef _WIN32
-  system("mkdir results >nul 2>nul");
+  _mkdir("results");
 #else
-  system("mkdir -p results");
+  mkdir("results", 0777); // POSIX
 #endif
 
-  /* パラメータ */
+  /* ----------------------------------------------------------
+   * Parameters
+   * ---------------------------------------------------------- */
   nsc_info_len = 100;
   nsc_code_len = 2 * (100 + 2);
 
@@ -41,7 +59,9 @@ int main() {
   double EbN0_max = 10.0;
   double EbN0_step = 1.0;
 
-  /* CSV 出力ファイル */
+  /* ----------------------------------------------------------
+   * Open CSV file
+   * ---------------------------------------------------------- */
   FILE *fp = fopen("results/ber_result.csv", "w");
   if (!fp) {
     fprintf(stderr, "Cannot open results/ber_result.csv\n");
@@ -49,7 +69,9 @@ int main() {
   }
   fprintf(fp, "EbN0_dB,BER_soft,BER_hard,BER_bpsk\n");
 
-  /* メモリ確保 */
+  /* ----------------------------------------------------------
+   * Memory allocation
+   * ---------------------------------------------------------- */
   int *data = malloc(sizeof(int) * K);
   int *code = malloc(sizeof(int) * N);
   double *LLR = malloc(sizeof(double) * N);
@@ -64,10 +86,16 @@ int main() {
     return -1;
   }
 
+  /* ----------------------------------------------------------
+   * RNG init
+   * ---------------------------------------------------------- */
   srand((unsigned)time(NULL));
 
   printf("EbN0_dB, BER_soft, BER_hard, BER_bpsk\n");
 
+  /* ----------------------------------------------------------
+   * Main Eb/N0 loop
+   * ---------------------------------------------------------- */
   for (double EbN0_dB = EbN0_min; EbN0_dB <= EbN0_max; EbN0_dB += EbN0_step) {
 
     double EbN0 = pow(10.0, EbN0_dB / 10.0);
@@ -81,9 +109,11 @@ int main() {
 
     for (int t = 0; t < trials; t++) {
 
+      /* Random data */
       for (int i = 0; i < K; i++)
         data[i] = rand() & 1;
 
+      /* Encode */
       nsc_encode_r05(data, code);
 
       /* AWGN channel */
@@ -95,9 +125,11 @@ int main() {
         rx_bits[i] = (y >= 0.0) ? 0 : 1;
       }
 
+      /* Soft & Hard Viterbi */
       nsc_decode_r05_soft(LLR, info_soft, code_hat);
       nsc_decode_r05_hard(rx_bits, info_hard, code_hat);
 
+      /* Count errors */
       for (int i = 0; i < K; i++) {
         if (info_soft[i] != data[i])
           error_soft++;
@@ -119,6 +151,9 @@ int main() {
             ber_bpsk);
   }
 
+  /* ----------------------------------------------------------
+   * Cleanup
+   * ---------------------------------------------------------- */
   fclose(fp);
 
   free(data);
