@@ -2,7 +2,6 @@ CC      = gcc
 CFLAGS  = -O2 -Wall -std=c99 -Iinclude
 LDFLAGS = -lm
 
-# NSC library sources
 SRC = \
     src/nsc_encoder.c \
     src/nsc_decoder.c \
@@ -10,26 +9,27 @@ SRC = \
 
 OBJ = $(SRC:.c=.o)
 
-# Test program
 TEST_SRC = examples/test_nsc.c
 TEST_OBJ = $(TEST_SRC:.c=.o)
 
 BIN_DIR = bin
-TARGET = $(BIN_DIR)/test_nsc
+TARGET  = $(BIN_DIR)/test_nsc
 
-all: $(BIN_DIR) $(TARGET)
+all: $(TARGET)
 
-# Windows + Linux 両対応 mkdir（Windows優先）
+# Create bin directory (auto-detect platform)
 $(BIN_DIR):
-	@if not exist $(BIN_DIR) mkdir $(BIN_DIR)
+	@if [ ! -d "$(BIN_DIR)" ]; then \
+		mkdir -p $(BIN_DIR) 2>/dev/null || mkdir $(BIN_DIR); \
+	fi
 
-$(TARGET): $(OBJ) $(TEST_OBJ)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+$(TARGET): $(BIN_DIR) $(OBJ) $(TEST_OBJ)
+	$(CC) $(CFLAGS) -o $@ $(OBJ) $(TEST_OBJ) $(LDFLAGS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-run:
+run: $(TARGET)
 	./$(TARGET)
 
 clean:
