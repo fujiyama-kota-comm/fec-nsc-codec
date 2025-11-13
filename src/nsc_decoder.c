@@ -6,247 +6,248 @@
 #include <stdlib.h>
 
 /* ============================================================
-   NSC Decoder (Rate 1/2)
-   - Soft decision (LLR)
-   - Hard decision (0/1)
-   Trellis-based Viterbi decoder
+   NSC Decoder (Rate 1/2, terminated)
+   - Soft-decision (LLR)
+   - Hard-decision (0/1)
+   Trellis-based Viterbi decoder (標準実装)
    ============================================================ */
 
 extern int nsc_info_len; // 情報ビット長 K
-extern int nsc_code_len; // 符号ビット長 N = 2*(K+2)
+extern int nsc_code_len; // 符号ビット長 N = 2*(K+tail)
 
 /* ------------------------------------------------------------
-   Soft-decision branch metric (for LLR)
-   出力ビットは +1 / -1 にマッピングして使う
+   Soft-decision branch metric (1 シンボル分)
+   出力ビット 0/1 → BPSK (+1 / -1) にマッピングして
+   LLR と内積を取る形で定義
    ------------------------------------------------------------ */
-static inline double branch_metric_soft(const double *LLR, int symbol_index,
-                                        int out0, int out1) {
+static inline double branch_metric_soft_symbol(const double *LLR,
+                                               int symbol_index, int out_bit0,
+                                               int out_bit1) {
   double v = LLR[2 * symbol_index];
   double w = LLR[2 * symbol_index + 1];
 
-  return -(out0 * v + out1 * w);
+  /* 0 → +1, 1 → -1 */
+  double s0 = (out_bit0 == 0) ? +1.0 : -1.0;
+  double s1 = (out_bit1 == 0) ? +1.0 : -1.0;
+
+  /* 負の相関（小さいほど良い） */
+  return -(s0 * v + s1 * w);
 }
 
 /* ------------------------------------------------------------
-   Hard-decision branch metric (Hamming distance)
+   Hard-decision branch metric (Hamming distance, 1 シンボル分)
    ------------------------------------------------------------ */
-static inline int branch_metric_hard(const int *rx, int symbol_index, int out0,
-                                     int out1) {
-  int v = rx[2 * symbol_index];
-  int w = rx[2 * symbol_index + 1];
-  return (v != out0) + (w != out1);
+static inline int branch_metric_hard_symbol(const int *rx_bits,
+                                            int symbol_index, int out_bit0,
+                                            int out_bit1) {
+  int v = rx_bits[2 * symbol_index];
+  int w = rx_bits[2 * symbol_index + 1];
+
+  return (v != out_bit0) + (w != out_bit1);
 }
 
 /* ============================================================
    Soft-decision Viterbi Decoder
-   LLR:      受信 LLR
+   LLR:      受信 LLR (長さ N)
    info_hat: 推定情報ビット（長さ K）
-   code_hat: 再符号化結果（optional）
+   code_hat: 再符号化系列（Optional, NULL 可）
    ============================================================ */
 void nsc_decode_r05_soft(const double *LLR, int *info_hat, int *code_hat) {
-  int steps = nsc_code_len / 2;
+  int K = nsc_info_len;
+  int N = nsc_code_len;
+  int steps = N / 2; // シンボル数 = K + tail (2)
 
-  /* パスメトリック */
-  double *metric[4];
-  for (int s = 0; s < 4; s++) {
-    metric[s] = malloc(sizeof(double) * steps);
-    for (int i = 0; i < steps; i++)
-      metric[s][i] = INFINITY;
+  /* -------------------------------------------
+     パスメトリックとバックポインタ
+     metric_prev/state: 時刻 i-1
+     metric_curr/state: 時刻 i
+     prev_state[i][s], prev_bit[i][s]
+     ------------------------------------------- */
+  double metric_prev[4];
+  double metric_curr[4];
+
+  int *prev_state = (int *)malloc(sizeof(int) * steps * 4);
+  int *prev_bit = (int *)malloc(sizeof(int) * steps * 4);
+
+  if (!prev_state || !prev_bit) {
+    fprintf(stderr, "Memory allocation failed in decoder\n");
+    free(prev_state);
+    free(prev_bit);
+    return;
   }
 
-  /* --------------------------
-     初期状態 (state=A固定)
-     -------------------------- */
+  /* -------------------------------------------
+     初期メトリック（時刻 -1 に相当）
+     終端付きなので、開始状態は必ず STATE_A
+     ------------------------------------------- */
   for (int s = 0; s < 4; s++)
-    metric[s][0] = INFINITY;
+    metric_prev[s] = 1e30;
+  metric_prev[STATE_A] = 0.0;
 
-  // A→A (input 0)
-  metric[STATE_A][0] = branch_metric_soft(LLR, 0, +1, +1);
+  /* =======================================================
+     Forward recursion
+     各時刻 i について，
+       - すべての遷移 (prev_state, input_bit) を試し，
+       - new_state に対する最良パスを更新
+     ======================================================= */
+  for (int i = 0; i < steps; i++) {
 
-  // A→C (input 1)
-  metric[STATE_C][0] = branch_metric_soft(LLR, 0, -1, -1);
-
-  /* =====================================================
-     Forward recursion (trellis ベース)
-     ===================================================== */
-  for (int i = 1; i < steps; i++) {
-
+    /* 各状態のメトリックを一旦∞にリセット */
     for (int s = 0; s < 4; s++) {
-      double best = INFINITY;
+      metric_curr[s] = 1e30;
+    }
 
-      // どの前状態 "ps" が "s" に遷移するかを探索
-      for (int ps = 0; ps < 4; ps++) {
-        for (int b = 0; b < 2; b++) {
-          if (nsc_next_state[ps][b] == s) {
-            int out0 = nsc_output_bits[ps][b][0] ? -1 : +1;
-            int out1 = nsc_output_bits[ps][b][1] ? -1 : +1;
+    for (int ps = 0; ps < 4; ps++) {
+      if (metric_prev[ps] >= 1e29)
+        continue; // 到達不能な状態はスキップ
 
-            double m =
-                metric[ps][i - 1] + branch_metric_soft(LLR, i, out0, out1);
+      for (int b = 0; b < 2; b++) {
 
-            if (m < best)
-              best = m;
-          }
+        int ns = nsc_next_state[ps][b];
+        int out_bit0 = nsc_output_bits[ps][b][0];
+        int out_bit1 = nsc_output_bits[ps][b][1];
+
+        double bm = branch_metric_soft_symbol(LLR, i, out_bit0, out_bit1);
+        double cand = metric_prev[ps] + bm;
+
+        if (cand < metric_curr[ns]) {
+          metric_curr[ns] = cand;
+          prev_state[i * 4 + ns] = ps;
+          prev_bit[i * 4 + ns] = b;
         }
       }
-      metric[s][i] = best;
     }
+
+    /* 次のステップへ */
+    for (int s = 0; s < 4; s++)
+      metric_prev[s] = metric_curr[s];
   }
 
-  /* --------------------------
-     最尤終端状態
-     -------------------------- */
-  NSCState state = STATE_A;
-  double best_final = metric[state][steps - 1];
-
-  for (int s = 1; s < 4; s++) {
-    if (metric[s][steps - 1] < best_final) {
-      best_final = metric[s][steps - 1];
+  /* -------------------------------------------
+     終端状態の決定
+     テールビットで STATE_A に強制終端しているので
+     本来は STATE_A 固定でよい
+     （念のため最小メトリックも見ておく）
+     ------------------------------------------- */
+  int state = STATE_A;
+  double best_final = metric_prev[state];
+  for (int s = 0; s < 4; s++) {
+    if (metric_prev[s] < best_final) {
+      best_final = metric_prev[s];
       state = s;
     }
   }
 
-  /* =====================================================
-     Backward recursion（情報ビット復元）
-     ===================================================== */
-  for (int i = steps - 1; i >= 1; i--) {
+  /* =======================================================
+     Backward trace
+     時刻 i に対応するビット prev_bit[i][state] を取り出し，
+     i < K のときだけ info_hat[i] に書き込む
+     （i >= K はテールビットなので破棄）
+     ======================================================= */
+  for (int i = steps - 1; i >= 0; i--) {
+    int b = prev_bit[i * 4 + state];
+    int ps = prev_state[i * 4 + state];
 
-    int decided_bit = 0;
-    NSCState prev_state_best = STATE_A;
-    double best_metric = INFINITY;
-
-    for (int ps = 0; ps < 4; ps++) {
-      for (int b = 0; b < 2; b++) {
-
-        if (nsc_next_state[ps][b] != state)
-          continue;
-
-        int out0 = nsc_output_bits[ps][b][0] ? -1 : +1;
-        int out1 = nsc_output_bits[ps][b][1] ? -1 : +1;
-
-        double m = metric[ps][i - 1] + branch_metric_soft(LLR, i, out0, out1);
-
-        if (m < best_metric) {
-          best_metric = m;
-          prev_state_best = ps;
-          decided_bit = b;
-        }
-      }
+    if (i < K) {
+      info_hat[i] = b;
     }
 
-    // i-2 以下だけ情報ビット (テールビット除外)
-    if (i - 2 < nsc_info_len)
-      info_hat[i - 2] = decided_bit;
-
-    state = prev_state_best;
+    state = ps;
   }
 
-  /* 再符号化（optional） */
-  if (code_hat)
+  /* Optional: 再符号化 */
+  if (code_hat) {
     nsc_encode_r05(info_hat, code_hat);
+  }
 
-  for (int s = 0; s < 4; s++)
-    free(metric[s]);
+  free(prev_state);
+  free(prev_bit);
 }
 
 /* ============================================================
    Hard-decision Viterbi Decoder
-   rx_bits: 0/1 の受信ビット列
+   rx_bits: 0/1 の受信ビット列 (長さ N)
    ============================================================ */
 void nsc_decode_r05_hard(const int *rx_bits, int *info_hat, int *code_hat) {
-  int steps = nsc_code_len / 2;
+  int K = nsc_info_len;
+  int N = nsc_code_len;
+  int steps = N / 2;
 
-  /* パスメトリック */
-  int *metric[4];
-  for (int s = 0; s < 4; s++) {
-    metric[s] = malloc(sizeof(int) * steps);
-    for (int i = 0; i < steps; i++)
-      metric[s][i] = 1e9;
+  int metric_prev[4];
+  int metric_curr[4];
+
+  int *prev_state = (int *)malloc(sizeof(int) * steps * 4);
+  int *prev_bit = (int *)malloc(sizeof(int) * steps * 4);
+
+  if (!prev_state || !prev_bit) {
+    fprintf(stderr, "Memory allocation failed in decoder (hard)\n");
+    free(prev_state);
+    free(prev_bit);
+    return;
   }
 
-  /* 初期状態 */
-  metric[STATE_A][0] = branch_metric_hard(rx_bits, 0, 0, 0);
-  metric[STATE_C][0] = branch_metric_hard(rx_bits, 0, 1, 1);
+  /* 初期メトリック */
+  for (int s = 0; s < 4; s++)
+    metric_prev[s] = 1000000000;
+  metric_prev[STATE_A] = 0;
 
-  /* -----------------------------------------
-     Forward recursion
-     ----------------------------------------- */
-  for (int i = 1; i < steps; i++) {
+  /* Forward recursion */
+  for (int i = 0; i < steps; i++) {
 
-    for (int s = 0; s < 4; s++) {
-      int best = 1e9;
+    for (int s = 0; s < 4; s++)
+      metric_curr[s] = 1000000000;
 
-      for (int ps = 0; ps < 4; ps++) {
-        for (int b = 0; b < 2; b++) {
+    for (int ps = 0; ps < 4; ps++) {
+      if (metric_prev[ps] >= 100000000)
+        continue;
 
-          if (nsc_next_state[ps][b] != s)
-            continue;
+      for (int b = 0; b < 2; b++) {
 
-          int out0 = nsc_output_bits[ps][b][0];
-          int out1 = nsc_output_bits[ps][b][1];
+        int ns = nsc_next_state[ps][b];
+        int out_bit0 = nsc_output_bits[ps][b][0];
+        int out_bit1 = nsc_output_bits[ps][b][1];
 
-          int m =
-              metric[ps][i - 1] + branch_metric_hard(rx_bits, i, out0, out1);
+        int bm = branch_metric_hard_symbol(rx_bits, i, out_bit0, out_bit1);
+        int cand = metric_prev[ps] + bm;
 
-          if (m < best)
-            best = m;
+        if (cand < metric_curr[ns]) {
+          metric_curr[ns] = cand;
+          prev_state[i * 4 + ns] = ps;
+          prev_bit[i * 4 + ns] = b;
         }
       }
-
-      metric[s][i] = best;
     }
+
+    for (int s = 0; s < 4; s++)
+      metric_prev[s] = metric_curr[s];
   }
 
-  /* -----------------------------------------
-     Final state
-     ----------------------------------------- */
-  NSCState state = STATE_A;
-  int best_final = metric[state][steps - 1];
-
-  for (int s = 1; s < 4; s++) {
-    if (metric[s][steps - 1] < best_final) {
-      best_final = metric[s][steps - 1];
+  /* 終端状態（STATE_A を優先） */
+  int state = STATE_A;
+  int best_final = metric_prev[state];
+  for (int s = 0; s < 4; s++) {
+    if (metric_prev[s] < best_final) {
+      best_final = metric_prev[s];
       state = s;
     }
   }
 
-  /* -----------------------------------------
-     Backward trace
-     ----------------------------------------- */
-  for (int i = steps - 1; i >= 1; i--) {
+  /* Backward trace */
+  for (int i = steps - 1; i >= 0; i--) {
+    int b = prev_bit[i * 4 + state];
+    int ps = prev_state[i * 4 + state];
 
-    int decided_bit = 0;
-    NSCState prev_state_best = STATE_A;
-    int best_metric = 1e9;
-
-    for (int ps = 0; ps < 4; ps++) {
-      for (int b = 0; b < 2; b++) {
-
-        if (nsc_next_state[ps][b] != state)
-          continue;
-
-        int out0 = nsc_output_bits[ps][b][0];
-        int out1 = nsc_output_bits[ps][b][1];
-
-        int m = metric[ps][i - 1] + branch_metric_hard(rx_bits, i, out0, out1);
-
-        if (m < best_metric) {
-          best_metric = m;
-          prev_state_best = ps;
-          decided_bit = b;
-        }
-      }
+    if (i < K) {
+      info_hat[i] = b;
     }
 
-    if (i - 2 < nsc_info_len)
-      info_hat[i - 2] = decided_bit;
-
-    state = prev_state_best;
+    state = ps;
   }
 
-  if (code_hat)
+  if (code_hat) {
     nsc_encode_r05(info_hat, code_hat);
+  }
 
-  for (int s = 0; s < 4; s++)
-    free(metric[s]);
+  free(prev_state);
+  free(prev_bit);
 }
