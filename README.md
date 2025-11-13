@@ -30,25 +30,6 @@ Designed for:
 
 ---
 
-## 📦 Version Information
-
-Current version: **0.1.0**
-(Automatically synchronized with Git tags)
-
-To see the program version:
-
-```sh
-./nsc_ber
-```
-
-Output example:
-
-```
-fec-nsc-codec version 0.1.0
-```
-
----
-
 ## 📁 Project Structure
 
 ```
