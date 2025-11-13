@@ -13,11 +13,22 @@ TEST_SRC = examples/test_nsc.c
 TEST_OBJ = $(TEST_SRC:.c=.o)
 
 BIN_DIR = bin
-TARGET  = $(BIN_DIR)/test_nsc
+TARGET_NAME = test_nsc
+
+# OS によって実行ファイル名を切り替え
+ifeq ($(OS),Windows_NT)
+    TARGET = $(BIN_DIR)/$(TARGET_NAME).exe
+else
+    TARGET = $(BIN_DIR)/$(TARGET_NAME)
+endif
+
+# ============================================================
+#  Build rules
+# ============================================================
 
 all: $(TARGET)
 
-# Create bin directory (auto-detect platform)
+# Create bin directory (cross-platform)
 $(BIN_DIR):
 	@if [ ! -d "$(BIN_DIR)" ]; then \
 		mkdir -p $(BIN_DIR) 2>/dev/null || mkdir $(BIN_DIR); \
@@ -29,10 +40,30 @@ $(TARGET): $(BIN_DIR) $(OBJ) $(TEST_OBJ)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# ============================================================
+#  Run
+# ============================================================
 run: $(TARGET)
 	./$(TARGET)
 
+# ============================================================
+#  Clean (Windows + Linux 完全対応)
+# ============================================================
 clean:
-	rm -f $(OBJ) $(TEST_OBJ) $(TARGET)
+	@echo "Cleaning object files..."
+	rm -f $(OBJ) $(TEST_OBJ)
+
+	@echo "Cleaning binaries..."
+	# Windows .exe 削除
+	@if [ -f "$(BIN_DIR)/$(TARGET_NAME).exe" ]; then rm -f "$(BIN_DIR)/$(TARGET_NAME).exe"; fi
+
+	# Linux/macOS バイナリ削除
+	@if [ -f "$(BIN_DIR)/$(TARGET_NAME)" ]; then rm -f "$(BIN_DIR)/$(TARGET_NAME)"; fi
+
+	# bin フォルダ内が空なら削除
+	@if [ -d "$(BIN_DIR)" ] && [ ! "$$(ls -A $(BIN_DIR))" ]; then \
+		echo "Removing empty bin directory"; \
+		rmdir $(BIN_DIR); \
+	fi
 
 .PHONY: all clean run

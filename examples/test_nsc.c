@@ -57,7 +57,7 @@ int main() {
   int K = nsc_info_len;
   int N = nsc_code_len;
 
-  int trials = 100000;
+  int trials = 500000;
   double EbN0_min = 0.0;
   double EbN0_max = 10.0;
   double EbN0_step = 1.0;
