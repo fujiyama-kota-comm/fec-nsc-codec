@@ -14,9 +14,9 @@ This repository provides a lightweight and modular implementation of
 
 - Rate-1/2 convolutional encoder
 - 4-state trellis (constraint length 3)
-- Viterbi decoder (hard and soft decision)
+- Hard/soft Viterbi decoder
 - Branchless trellis-based implementation
-- BER simulation example under AWGN
+- BER simulation under AWGN
 
 Designed for:
 
@@ -43,19 +43,19 @@ fec-nsc-codec
 ## 📑 Features
 
 ### ✔ NSC Encoder (Rate 1/2)
-- Output bits from trellis tables
+- Trellis table–based generation
 - Forced termination (tail bits)
-- No conditional branching
+- Branchless implementation
 
 ### ✔ Viterbi Decoder
-- Hard-decision decoding (Hamming metric)
-- Soft-decision decoding (LLR metric)
+- Hard-decision Viterbi (Hamming metric)
+- Soft-decision Viterbi (LLR metric)
 - Full traceback implementation
 - Trellis defined in `trellis.h`
 
 ### ✔ AWGN BER Simulation
-`examples/test_nsc.c` evaluates BER vs Eb/N0
-for both soft and hard decoding.
+The program `examples/test_nsc.c` evaluates BER vs Eb/N0
+for both hard- and soft-decision decoding.
 
 ---
 
@@ -64,7 +64,7 @@ for both soft and hard decoding.
 ### Requirements
 - GCC or Clang
 - `make`
-- Linux / macOS / WSL / MinGW (Windows)
+- Linux / macOS / WSL / MinGW
 
 ---
 
@@ -80,7 +80,7 @@ Generated binary:
 test_nsc   # BER simulation program
 ```
 
-Clean build files:
+Clean build:
 
 ```sh
 make clean
@@ -96,15 +96,18 @@ Run BER simulation:
 ./test_nsc
 ```
 
-Example output:
+Example BER result (CSV):
 
-![BER result](results/ber_result.csv)
+```
+results/ber_result.csv
+```
 
 ---
 
 ## 📉 BER Performance
 
-Example BER curve for rate-1/2 NSC (4-state Viterbi, AWGN, BPSK):
+Example BER curve for rate-1/2 NSC
+(4-state Viterbi, AWGN, BPSK):
 
 ![BER curve](images/ber_curve.png)
 
@@ -152,4 +155,4 @@ For major changes, please open an issue first.
 Developed as part of research in
 **Forward Error Correction (FEC)** and **physical-layer communications**.
 
-If this repository is useful, please consider starring ⭐ it on GitHub!
+If this repository is useful, please consider giving it a ⭐ on GitHub!
