@@ -1,14 +1,19 @@
 CC = gcc
 CFLAGS = -O2 -Wall -Iinclude
+LIBS = -lm
 
-SRC = src/nsc_encoder.c \
-      src/nsc_decoder.c \
-      src/trellis.c
+SRCS = src/nsc_encoder.c src/nsc_decoder.c src/trellis.c
 
-all: test_nsc
+BIN = bin
+TEST = $(BIN)/test_nsc
 
-test_nsc: $(SRC) examples/test_nsc.c
-	$(CC) $(CFLAGS) $^ -o $@
+all: $(BIN) $(TEST)
+
+$(BIN):
+	mkdir -p $(BIN)
+
+$(TEST): $(SRCS) examples/test_nsc.c
+	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 
 clean:
-	rm -f test_nsc
+	rm -rf $(BIN)
