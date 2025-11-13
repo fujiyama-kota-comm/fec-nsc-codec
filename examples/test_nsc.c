@@ -12,6 +12,7 @@
 
 #include "nsc_decoder.h"
 #include "nsc_encoder.h"
+#include "version.h"
 
 #define PI 3.14159265358979323846
 

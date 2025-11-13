@@ -2,6 +2,7 @@
 
 ![Build](https://github.com/fujiyama-kota-comm/fec-nsc-codec/actions/workflows/c-cpp.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Version](https://img.shields.io/github/v/tag/fujiyama-kota-comm/fec-nsc-codec)
 
 C implementation of **Non-Systematic Convolutional Codes (NSC)** with **Viterbi decoding**
 for Forward Error Correction (FEC).
@@ -26,6 +27,25 @@ Designed for:
 - Wireless communication (5G/6G)
 - Embedded systems
 - Error-control coding education
+
+---
+
+## 📦 Version Information
+
+Current version: **0.1.0**
+(Automatically synchronized with Git tags)
+
+To see the program version:
+
+```sh
+./test_nsc
+```
+
+Output example:
+
+```
+fec-nsc-codec version 0.1.0
+```
 
 ---
 
