@@ -38,7 +38,7 @@ ber_bpsk = df["BER_bpsk"]
 # =============================================================================
 plt.figure(figsize=(7.5, 6))
 
-# --- Soft-decision Viterbi ---
+# --- Soft-decision Viterbi --- (青)
 plt.semilogy(
     EbN0,
     ber_soft,
@@ -47,10 +47,11 @@ plt.semilogy(
     markerfacecolor="none",
     markeredgewidth=1.8,
     linewidth=2.5,
+    color="g",
     label="Soft-decision Viterbi",
 )
 
-# --- Hard-decision Viterbi ---
+# --- Hard-decision Viterbi --- (緑)
 plt.semilogy(
     EbN0,
     ber_hard,
@@ -59,10 +60,11 @@ plt.semilogy(
     markerfacecolor="none",
     markeredgewidth=1.8,
     linewidth=2.5,
+    color="b",
     label="Hard-decision Viterbi",
 )
 
-# --- Uncoded BPSK theoretical BER ---
+# --- Uncoded BPSK theoretical BER --- (赤)
 plt.semilogy(
     EbN0,
     ber_bpsk,
@@ -71,6 +73,7 @@ plt.semilogy(
     markerfacecolor="none",
     markeredgewidth=1.8,
     linewidth=2.5,
+    color="r",
     label="Uncoded BPSK (theory)",
 )
 
