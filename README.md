@@ -115,7 +115,6 @@ results/ber_result.csv
 Example BER curve for rate-1/2 NSC
 (4-state Viterbi, AWGN, BPSK):
 
-![BER curve](images/nsc_ber.png)
 
 ---
 
