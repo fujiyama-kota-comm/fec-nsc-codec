@@ -113,10 +113,10 @@ results/nsc_ber_data.csv
 
 ## 📉 BER Performance
 
-Example BER curve for rate-1/2 NSC
+Example BER graph for rate-1/2 NSC
 (4-state Viterbi, AWGN, BPSK):
 
-![BER curve](images/nsc_ber_graph.png)
+![BER graph](images/nsc_ber_graph.png)
 
 ---
 
