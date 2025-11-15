@@ -39,6 +39,7 @@ fec-nsc-codec
 ├── mains/               # Test programs & BER simulation
 ├── results/             # Generated BER results
 ├── images/              # BER plots and diagrams
+├── python/              # Plotting scripts
 ├── .github/workflows/   # CI pipeline (GCC build)
 ├── Makefile             # Build rules
 └── README.md            # This document

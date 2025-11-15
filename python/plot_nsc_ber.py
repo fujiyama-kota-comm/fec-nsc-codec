@@ -5,9 +5,9 @@ import os
 # =============================================================================
 #  Plot BER Curves for NSC Viterbi Decoder
 #  ---------------------------------------------------------------------------
-#  - Input : results/nsc_ber.csv
+#  - Input : results/nsc_ber_data.csv
 #      Columns = EbN0_dB, BER_soft, BER_hard, BER_bpsk
-#  - Output: images/nsc_ber.png, images/nsc_ber.svg
+#  - Output: images/nsc_ber_graph.png, images/nsc_ber_graph.svg
 # =============================================================================
 
 # ▼ 出力フォルダ（images/）が無い場合は自動作成
@@ -23,7 +23,7 @@ plt.rcParams["font.size"] = 14
 # =============================================================================
 #  Load CSV data
 # =============================================================================
-df = pd.read_csv("results/nsc_ber.csv")
+df = pd.read_csv("results/nsc_ber_data.csv")
 
 EbN0 = df["EbN0_dB"]
 ber_soft = df["BER_soft"]
@@ -88,7 +88,7 @@ plt.tight_layout()
 # =============================================================================
 #  Save figure
 # =============================================================================
-plt.savefig("images/nsc_ber.png", dpi=300, bbox_inches="tight")  # PNG
-plt.savefig("images/nsc_ber.svg", dpi=300, bbox_inches="tight")  # SVG (vector)
+plt.savefig("images/nsc_ber_graph.png", dpi=300, bbox_inches="tight")  # PNG
+plt.savefig("images/nsc_ber_graph.svg", dpi=300, bbox_inches="tight")  # SVG (vector)
 
 plt.show()
