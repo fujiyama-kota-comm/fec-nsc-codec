@@ -1,5 +1,3 @@
-#include "version.h"
-
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,8 +56,6 @@ double bpsk_ber(double EbN0_linear) {
  *      EbN0_dB, BER_soft, BER_hard, BER_bpsk
  * ========================================================================== */
 int main() {
-  printf("fec-nsc-codec version %s\n", NSC_VERSION);
-
   /* ----------------------------------------------------------------------
    * Create results/ directory
    * ------------------------------------------------------------------ */
