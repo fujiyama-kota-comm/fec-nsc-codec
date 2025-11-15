@@ -106,7 +106,7 @@ Run BER simulation:
 Example BER result (CSV):
 
 ```
-results/ber_result.csv
+results/nsc_ber_data.csv
 ```
 
 ---
@@ -116,7 +116,7 @@ results/ber_result.csv
 Example BER curve for rate-1/2 NSC
 (4-state Viterbi, AWGN, BPSK):
 
-![BER curve](images/nsc_ber.png)
+![BER curve](images/nsc_ber_graph.png)
 
 ---
 
