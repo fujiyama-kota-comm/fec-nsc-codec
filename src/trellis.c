@@ -1,101 +1,118 @@
 #include "trellis.h"
 
-/* ============================================================================
- *  Trellis definition for NSC (Non-Systematic Convolutional Code) — Rate 1/2
- *  ============================================================================
+/* =============================================================================
+ *  Trellis Definition for Non-Systematic Convolutional Code (NSC) — Rate 1/2
+ * =============================================================================
  *
- *  本ファイルでは、2-bit shift register（状態数 4）を持つ
- *  レート 1/2 の非系統的畳み込み符号器の trellis を定義する。
+ *  This file defines the trellis structure for a 2-bit shift-register,
+ *  rate-1/2, non-systematic convolutional encoder. The trellis is represented
+ *  as lookup tables (no branching) for high-speed Viterbi decoding.
  *
- *  符号器のレジスタ状態は以下の 4 通り:
- *
+ *  ---------------------------------------------------------------------------
+ *  State Representation (2-bit shift register)
+ *  ---------------------------------------------------------------------------
  *      STATE_A : 00
  *      STATE_B : 01
  *      STATE_C : 10
  *      STATE_D : 11
  *
- *  入力ビット b ∈ {0,1} に対して
+ *  For input bit b ∈ {0,1}, the encoder outputs a 2-bit vector (v,w) and
+ *  transitions to the next state, determined purely by the shift-register.
  *
- *      - 出力ビット列 (v, w)
- *      - 次状態 next_state
+ *  These tables enable:
+ *      - Branchless encoder implementation
+ *      - Fast metric computation in Viterbi decoding
+ *      - Clear, deterministic trellis representation
  *
- *  をテーブルとして定義する（if 文なしの高速実装用）。
+ *  ---------------------------------------------------------------------------
+ *  NOTE:
+ *      This trellis is NOT derived from arbitrary generator polynomials.
+ *      Instead, it is a fixed “educational / demo” NSC example with:
  *
- * ---------------------------------------------------------------------------
- *  ※ この trellis は、ユーザが自由に選択する生成多項式 (generator polynomial)
- *     による汎用構造ではなく、研究デモ用に固定された “NSC 標準例”。
+ *          - Constraint length K = 3 (2-bit state)
+ *          - Non-systematic output (only (v,w), no systematic bit)
+ *          - Two output bits per input bit → rate 1/2
  *
- *     よって生成多項式 133, 171 (octal) のような K=7 の系統的符号ではなく、
- *     K=3（2-bit 状態）の非系統的構成を採用していることに注意。
+ *      This differs from conventional systematic encoders using polynomials
+ *      such as 133, 171 (octal). Here, a simpler non-systematic form is used.
  *
- *     典型的な構造:
- *         - 2-bit shift register (constraint length = 3)
- *         - systematic ではない → 出力は (v,w)
- * のみ（入力ビットはそのまま出さない）
- * ---------------------------------------------------------------------------
+ *  ---------------------------------------------------------------------------
+ *  Provided lookup tables:
+ *      nsc_output_bits[state][input][2] → output bits (v,w)
+ *      nsc_next_state[state][input]     → next trellis state
  *
- *  trellis.h にて STATE_A〜STATE_D の enum 対応を提供。
+ *  These tables are consumed by both:
+ *      - nsc_encoder.c
+ *      - nsc_decoder.c (hard-decision & soft-decision Viterbi)
  *
- * ========================================================================== */
+ * =============================================================================
+ */
 
-/* ============================================================================
- *  出力ビットテーブル nsc_output_bits[state][input_bit][2]
- *  --------------------------------------------------------------------------
- *  各状態 + 入力ビットに対して出力される 2bit (v,w)
- *
- *  例：
+/* =============================================================================
+ *  Output Bit Table: nsc_output_bits[state][input_bit][2]
+ * =============================================================================
+ *  Example:
  *      nsc_output_bits[STATE_A][0] = {0,0}
  *      nsc_output_bits[STATE_A][1] = {1,1}
  *
- *  読み方：
- *      state = 00 で input=1 → 出力 11 → 次状態は 10（=STATE_C）
- * ========================================================================== */
+ *  Meaning:
+ *      At state 00, input 1 produces output 11 and moves to STATE_C (10).
+ *
+ *  Structure:
+ *      state = 0..3 (A..D)
+ *      input = 0 or 1
+ *      output = {v, w} (two coded bits)
+ *
+ * =============================================================================
+ */
 const int nsc_output_bits[4][2][2] = {
 
-    /* ----------------------------------------------------------------------
-     * STATE_A : shift register = 00
-     * ------------------------------------------------------------------ */
+    /* STATE_A : 00 ----------------------------------------------------------
+     */
     {
-        {0, 0}, /* input 0 → 出力 00 → next = STATE_A */
-        {1, 1}  /* input 1 → 出力 11 → next = STATE_C */
+        {0, 0}, /* input 0 → output 00 → next = STATE_A */
+        {1, 1}  /* input 1 → output 11 → next = STATE_C */
     },
 
-    /* ----------------------------------------------------------------------
-     * STATE_B : shift register = 01
-     * ------------------------------------------------------------------ */
+    /* STATE_B : 01 ----------------------------------------------------------
+     */
     {
-        {1, 1}, /* input 0 → 出力 11 → next = STATE_A */
-        {0, 0}  /* input 1 → 出力 00 → next = STATE_C */
+        {1, 1}, /* input 0 → output 11 → next = STATE_A */
+        {0, 0}  /* input 1 → output 00 → next = STATE_C */
     },
 
-    /* ----------------------------------------------------------------------
-     * STATE_C : shift register = 10
-     * ------------------------------------------------------------------ */
+    /* STATE_C : 10 ----------------------------------------------------------
+     */
     {
-        {0, 1}, /* input 0 → 出力 01 → next = STATE_B */
-        {1, 0}  /* input 1 → 出力 10 → next = STATE_D */
+        {0, 1}, /* input 0 → output 01 → next = STATE_B */
+        {1, 0}  /* input 1 → output 10 → next = STATE_D */
     },
 
-    /* ----------------------------------------------------------------------
-     * STATE_D : shift register = 11
-     * ------------------------------------------------------------------ */
+    /* STATE_D : 11 ----------------------------------------------------------
+     */
     {
-        {1, 0}, /* input 0 → 出力 10 → next = STATE_B */
-        {0, 1}  /* input 1 → 出力 01 → next = STATE_D */
+        {1, 0}, /* input 0 → output 10 → next = STATE_B */
+        {0, 1}  /* input 1 → output 01 → next = STATE_D */
     }};
 
-/* ============================================================================
- *  次状態テーブル nsc_next_state[state][input_bit]
- *  --------------------------------------------------------------------------
- *  シフトレジスタの状態遷移。
+/* =============================================================================
+ *  Next-State Table: nsc_next_state[state][input_bit]
+ * =============================================================================
  *
- *      新しい状態 = (state << 1) + input_bit （下位2bitで管理）
+ *  Shift register update rule:
  *
- *     ただしこの実装では、明示的にテーブル化して高速化する。
- * ========================================================================== */
+ *      new_state = ((state << 1) + input_bit) & 0b11
+ *
+ *  But for faster decoding, the next states are explicitly stored.
+ *
+ *  This table is essential for:
+ *      - Encoder state tracking
+ *      - Viterbi forward path computation
+ *
+ * =============================================================================
+ */
 const int nsc_next_state[4][2] = {
-    /* STATE_A (00) */ {STATE_A, STATE_C}, /* input 0 → 00, input 1 → 10 */
-    /* STATE_B (01) */ {STATE_A, STATE_C}, /* input 0 → 00, input 1 → 10 */
-    /* STATE_C (10) */ {STATE_B, STATE_D}, /* input 0 → 01, input 1 → 11 */
-    /* STATE_D (11) */ {STATE_B, STATE_D}  /* input 0 → 01, input 1 → 11 */
-};
+    /* STATE_A (00) */ {STATE_A, STATE_C},
+    /* STATE_B (01) */ {STATE_A, STATE_C},
+    /* STATE_C (10) */ {STATE_B, STATE_D},
+    /* STATE_D (11) */ {STATE_B, STATE_D}};

@@ -4,29 +4,33 @@
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Version](https://img.shields.io/github/v/tag/fujiyama-kota-comm/fec-nsc-codec)
 
-C implementation of **Non-Systematic Convolutional Codes (NSC)** with **Viterbi decoding**
-for Forward Error Correction (FEC).
-Supports **hard-decision** and **soft-decision (LLR)** decoding.
+A clean and modular C implementation of
+**Non-Systematic Convolutional (NSC) Codes** with both
+**soft-decision (LLR) and hard-decision Viterbi decoding**.
+
+Includes a branchless trellis-driven encoder/decoder and
+a complete **AWGN BER simulation framework**.
 
 ---
 
 ## 📘 Overview
 
-This repository provides a lightweight and modular implementation of
-**Non-Systematic Convolutional (NSC) Codes**, including:
+This repository provides a standalone, research-friendly implementation of a
+**rate-1/2 non-systematic convolutional code (NSC)** with:
 
-- Rate-1/2 convolutional encoder
-- 4-state trellis (constraint length 3)
-- Hard/soft Viterbi decoder
-- Branchless trellis-based implementation
-- BER simulation under AWGN
+- 2-bit shift register → **4-state trellis**
+- **Constraint length = 3**
+- Non-systematic output (two parity bits)
+- Branchless table-based encoder
+- Soft-decision / Hard-decision Viterbi decoder
+- AWGN BER simulation under BPSK
 
 Designed for:
 
-- FEC research
-- Wireless communication (5G/6G)
-- Embedded systems
-- Error-control coding education
+- Wireless communications (4G/5G/6G physical layer)
+- FPGA/DSP/embedded platforms
+- FEC algorithm education
+- Research experiments and performance benchmarking
 
 ---
 
@@ -35,12 +39,12 @@ Designed for:
 ```
 fec-nsc-codec
 ├── src/                 # Encoder/decoder core implementation
-├── include/             # Public header files
-├── mains/               # Test programs & BER simulation
-├── results/             # Generated BER results
-├── images/              # BER plots and diagrams
+├── include/             # Public API headers
+├── mains/               # BER simulation (AWGN + BPSK)
+├── results/             # Generated BER CSV files
+├── images/              # BER plots (from python/)
 ├── python/              # Plotting scripts
-├── .github/workflows/   # CI pipeline (GCC build)
+├── .github/workflows/   # GitHub Actions CI (GCC build)
 ├── Makefile             # Build rules
 └── README.md            # This document
 ```
@@ -49,20 +53,47 @@ fec-nsc-codec
 
 ## 📑 Features
 
-### ✔ NSC Encoder (Rate 1/2)
-- Trellis table–based generation
-- Forced termination (tail bits)
-- Branchless implementation
+### ✔ NSC Convolutional Encoder (Rate 1/2)
+- 4-state machine (constraint length = 3)
+- Non-systematic output (parity only)
+- Branchless trellis lookup:
+  - `nsc_output_bits[state][input]`
+  - `nsc_next_state[state][input]`
+- Forced termination using two tail bits → decoder starts/ends in STATE_A
 
 ### ✔ Viterbi Decoder
-- Hard-decision Viterbi (Hamming metric)
-- Soft-decision Viterbi (LLR metric)
-- Full traceback implementation
-- Trellis defined in `trellis.h`
+- **Soft-decision Viterbi**
+  - LLR-based branch metric
+  - Optimal for AWGN channels
+- **Hard-decision Viterbi**
+  - Hamming metric (0/1 input)
+  - Lower computational cost
+- Standard forward recursion + traceback
+- Fully compatible with the trellis in `trellis.h`
 
 ### ✔ AWGN BER Simulation
-The program `mains/nsc_ber.c` evaluates BER vs Eb/N0
-for both hard- and soft-decision decoding.
+
+```
+mains/nsc_ber.c
+```
+
+evaluates:
+
+- Soft-decision BER
+- Hard-decision BER
+- Uncoded BPSK theory
+
+Output:
+
+```
+results/nsc_ber_data.csv
+```
+
+Plots:
+
+```
+python python/plot_nsc_ber.py
+```
 
 ---
 
@@ -73,8 +104,6 @@ for both hard- and soft-decision decoding.
 - `make`
 - Linux / macOS / WSL / MinGW
 
----
-
 ### Build
 
 ```sh
@@ -84,10 +113,10 @@ make
 Generated binary:
 
 ```
-nsc_ber   # BER simulation program
+nsc_ber     # BER simulation program
 ```
 
-Clean build:
+Clean:
 
 ```sh
 make clean
@@ -103,17 +132,23 @@ Run BER simulation:
 ./nsc_ber
 ```
 
-Example BER result (CSV):
+Output CSV:
 
 ```
 results/nsc_ber_data.csv
+```
+
+Plot BER/BLER:
+
+```sh
+python python/plot_nsc_ber.py
 ```
 
 ---
 
 ## 📉 BER Performance
 
-Example BER graph for rate-1/2 NSC
+Example BER curve for rate-1/2 NSC
 (4-state Viterbi, AWGN, BPSK):
 
 ![BER graph](images/nsc_ber_graph.png)
@@ -125,50 +160,55 @@ Example BER graph for rate-1/2 NSC
 ### src/
 | File | Description |
 |------|-------------|
-| `nsc_encoder.c` | NSC encoder implementation |
-| `nsc_decoder.c` | Hard & soft Viterbi decoder |
-| `trellis.c` | Next-state & output tables |
+| `nsc_encoder.c` | Rate-1/2 NSC encoder (branchless) |
+| `nsc_decoder.c` | Soft & hard Viterbi decoder |
+| `trellis.c` | Trellis tables (output + next state) |
 
 ### include/
 | File | Description |
 |------|-------------|
 | `nsc_encoder.h` | Encoder API |
 | `nsc_decoder.h` | Decoder API |
-| `trellis.h` | Trellis constants |
+| `trellis.h` | Trellis definitions |
 
 ### mains/
 | File | Description |
 |------|-------------|
-| `nsc_ber.c` | BER simulation under AWGN |
+| `nsc_ber.c` | AWGN BER simulation |
+
+### python/
+| File | Description |
+|------|-------------|
+| `plot_nsc_ber.py` | BER plotting script |
 
 ---
 
 ## 🔒 Confidentiality Notice
 
-All source code in this repository was developed independently
-based only on public standards (3GPP) and academic knowledge.
-No confidential or proprietary information from any company,
-internship, or NDA-protected source is used.
+All source code in this repository was developed independently,
+based only on public standards and academic knowledge.
+No confidential or proprietary information from any company, internship,
+or NDA-protected environment is used.
 
 ---
 
 ## 📜 License
 
 This project is licensed under the **MIT License**.
-You may use it for research, education, and commercial applications.
+Free to use for research, education, and commercial applications.
 
 ---
 
 ## 🤝 Contributing
 
 Pull requests are welcome.
-For major changes, please open an issue first.
+For significant changes, please open an issue first.
 
 ---
 
 ## ⭐ Acknowledgements
 
-Developed as part of research in
+Developed as part of research on
 **Forward Error Correction (FEC)** and **physical-layer communications**.
 
-If this repository is useful, please consider giving it a ⭐ on GitHub!
+If you find this repository useful, please consider giving it a ⭐！

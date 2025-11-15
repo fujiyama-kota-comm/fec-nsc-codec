@@ -3,18 +3,25 @@ import matplotlib.pyplot as plt
 import os
 
 # =============================================================================
-#  Plot BER Curves for NSC Viterbi Decoder
+#  Plot BER Curves for NSC (Non-Systematic Convolutional Code)
 #  ---------------------------------------------------------------------------
 #  - Input : results/nsc_ber_data.csv
-#      Columns = EbN0_dB, BER_soft, BER_hard, BER_bpsk
-#  - Output: images/nsc_ber_graph.png, images/nsc_ber_graph.svg
+#        Columns = EbN0_dB, BER_soft, BER_hard, BER_bpsk
+#  - Output:
+#        images/nsc_ber_graph.png
+#        images/nsc_ber_graph.svg
+#
+#  Description:
+#        Visualizes the BER performance of the NSC (rate-1/2) convolutional code
+#        using soft-/hard-decision Viterbi decoding and compares it with
+#        uncoded BPSK theoretical performance.
 # =============================================================================
 
-# ▼ 出力フォルダ（images/）が無い場合は自動作成
+# Create output directory (if missing)
 os.makedirs("images", exist_ok=True)
 
 # =============================================================================
-#  Matplotlib フォント設定（論文向け）
+#  Matplotlib font settings (publication quality)
 # =============================================================================
 plt.rcParams["font.family"] = "Times New Roman"
 plt.rcParams["mathtext.fontset"] = "stix"
@@ -35,7 +42,7 @@ ber_bpsk = df["BER_bpsk"]
 # =============================================================================
 plt.figure(figsize=(7.5, 6))
 
-# --- Soft-decision Viterbi --- (緑)
+# --- Soft-decision Viterbi (green)
 plt.semilogy(
     EbN0,
     ber_soft,
@@ -48,7 +55,7 @@ plt.semilogy(
     label="Soft-decision Viterbi",
 )
 
-# --- Hard-decision Viterbi --- (青)
+# --- Hard-decision Viterbi (blue)
 plt.semilogy(
     EbN0,
     ber_hard,
@@ -61,7 +68,7 @@ plt.semilogy(
     label="Hard-decision Viterbi",
 )
 
-# --- Uncoded BPSK (赤)
+# --- Uncoded BPSK (theory, red)
 plt.semilogy(
     EbN0,
     ber_bpsk,
@@ -70,25 +77,45 @@ plt.semilogy(
     label="Uncoded BPSK (theory)",
 )
 
-# Y 軸スケール
+# Y-axis
 plt.ylim(1e-5, 1)
 
-# 軸ラベル
+# Axis labels
 plt.xlabel("Eb/N0 [dB]", fontsize=18)
 plt.ylabel("Bit Error Rate (BER)", fontsize=18)
 
-# グリッド（対数軸向け）
+# Grid for log-scale
 plt.grid(True, which="both", linestyle="--", linewidth=0.6, alpha=0.6)
 
-# 凡例
+# Legend
 plt.legend(fontsize=14, loc="upper right", frameon=True, edgecolor="black")
+
+# =============================================================================
+#  Annotation box (code parameters)
+# =============================================================================
+text = (
+    "NSC convolutional code\n"
+    "Rate = 1/2\n"
+    "Constraint length = 3\n"
+    "States = 4 (2-bit register)"
+)
+
+plt.annotate(
+    text,
+    xy=(0.03, 0.03),
+    xycoords="axes fraction",
+    ha="left",
+    va="bottom",
+    fontsize=12,
+    bbox=dict(facecolor="white", edgecolor="black", boxstyle="round,pad=0.4"),
+)
 
 plt.tight_layout()
 
 # =============================================================================
-#  Save figure
+#  Save figure (PNG + SVG)
 # =============================================================================
-plt.savefig("images/nsc_ber_graph.png", dpi=300, bbox_inches="tight")  # PNG
-plt.savefig("images/nsc_ber_graph.svg", dpi=300, bbox_inches="tight")  # SVG (vector)
+plt.savefig("images/nsc_ber_graph.png", dpi=300, bbox_inches="tight")
+plt.savefig("images/nsc_ber_graph.svg", dpi=300, bbox_inches="tight")
 
 plt.show()

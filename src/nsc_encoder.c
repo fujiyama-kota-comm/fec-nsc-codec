@@ -3,95 +3,116 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/* ========================================================================
- *  Non-Systematic Convolutional (NSC) Encoder
- *  ----------------------------------------------------------------------
- *  ・レート 1/2 の非系統的畳み込み符号（NASA 率の一般的な構造）
- *  ・符号器は trellis.h の
- *        - nsc_next_state[s][b]   : 次状態
- *        - nsc_output_bits[s][b]  : 出力系列 (2bit)
- *    に完全依存する「if 分岐の無い」テーブル駆動型実装
+/* =============================================================================
+ *  Non-Systematic Convolutional (NSC) Encoder — Rate 1/2
+ * =============================================================================
  *
- *  ・内部状態数 : 4 (2-bit shift register)
- *        STATE_A = 00, STATE_B = 01, STATE_C = 10, STATE_D = 11
+ *  This file implements a branchless, table-driven convolutional encoder
+ *  operating on a 2-bit shift-register (4 states). The encoder depends
+ *  solely on the trellis tables defined in trellis.h:
  *
- *  ・終端方式:
- *        tail bits = {0, 0} を追加し、終端状態を強制的に STATE_A へ戻す
+ *      - nsc_output_bits[state][input_bit][2] : coded output bits (v,w)
+ *      - nsc_next_state [state][input_bit]    : next shift-register state
  *
- *  ・code 長:
- *        N = 2 * (K + tail_len)
- *        ※ レート 1/2 のため、1 入力ビット → 2 出力ビット
+ *  The design is intentionally simple and efficient:
  *
- *  注意:
- *        グローバル変数 nsc_info_len / nsc_code_len は
- *        呼び出し側（main など）で必ず設定しておくこと。
- * ======================================================================== */
+ *      • Constraint length K = 3
+ *      • Number of states   = 4 (00, 01, 10, 11)
+ *      • Non-systematic output (no raw input bit in the output)
+ *      • Rate 1/2 encoding (1 input bit → 2 output bits)
+ *
+ *  ---------------------------------------------------------------------------
+ *  Tail-Biting / Termination
+ *  ---------------------------------------------------------------------------
+ *  Two tail bits {0,0} are appended to force the encoder back to the all-zero
+ *  state (STATE_A). This is a common termination method for short-frame NSC
+ *  codes and ensures compatibility with the Viterbi decoder's traceback.
+ *
+ *  ---------------------------------------------------------------------------
+ *  Output Length
+ *  ---------------------------------------------------------------------------
+ *      input length  = K  (nsc_info_len)
+ *      tail length   = 2  (nsc_tail_len)
+ *
+ *      total input bits  = K + 2
+ *      total output bits = 2 * (K + 2)   // rate 1/2
+ *
+ *  IMPORTANT:
+ *      The caller is responsible for setting:
+ *
+ *          nsc_info_len      (input length)
+ *          nsc_code_len      (output length)
+ *
+ *      before calling the encoder.
+ *
+ * =============================================================================
+ */
 
-/* --- グローバル変数（定義はここ、宣言はヘッダ側） --------------------- */
-int nsc_info_len;     // 情報ビット長 K
-int nsc_code_len;     // 出力符号長 N = 2 * (K + nsc_tail_len)
-int nsc_tail_len = 2; // 終端用テールビット数（2ビット固定）
+/* Global parameters (declared in header) ------------------------------------
+ */
+int nsc_info_len;     /* Number of information bits */
+int nsc_code_len;     /* Output length = 2 * (nsc_info_len + nsc_tail_len) */
+int nsc_tail_len = 2; /* Two termination bits forcing state → STATE_A */
 
-/* ========================================================================
- *  NSC Encoder (Rate 1/2)
- *  ----------------------------------------------------------------------
- *  data : 入力ビット系列 (長さ K)
- *  code : 出力符号系列 (長さ N = 2*(K + 2))
+/* =============================================================================
+ *  nsc_encode_r05()
+ * =============================================================================
  *
- *  説明:
- *    1) data[0..K-1] を buffer にコピー
- *    2) tail bits = {0,0} を付加し、必ず STATE_A に戻す
- *    3) Trellis のテーブル nsc_output_bits / nsc_next_state に従って
- *       if 分岐無しで符号化を実行
+ *  Encode a binary sequence using a rate-1/2 NSC encoder.
  *
- *  本関数は符号化のみを行い、データ長チェックは行わない。
- * ======================================================================== */
+ *  Arguments:
+ *      data : [input]  array of length K
+ *      code : [output] array of length 2 * (K + 2)
+ *
+ *  Process:
+ *      1) Copy input bits into a temporary buffer
+ *      2) Append 2 tail bits = {0,0}
+ *      3) Starting from STATE_A, follow the trellis transitions:
+ *
+ *              code[2*i]   = nsc_output_bits[state][b][0];
+ *              code[2*i+1] = nsc_output_bits[state][b][1];
+ *              state       = nsc_next_state[state][b];
+ *
+ *      This is a pure table-driven implementation: no branching, no bitwise
+ *      logic required inside the main loop.
+ *
+ *  NOTE:
+ *      Input size checks are intentionally omitted for performance.
+ *
+ * =============================================================================
+ */
 void nsc_encode_r05(const int *data, int *code) {
+  int total_bits = nsc_info_len + nsc_tail_len; /* K + 2 */
 
-  int total_bits = nsc_info_len + nsc_tail_len; // 入力 + tail の総数
-
-  /* ------------------------------------------------------------
-   * 入力バッファ（情報ビット + tail）
-   * ------------------------------------------------------------ */
+  /* Allocate buffer for input + tail bits -------------------------------- */
   int *buffer = malloc(sizeof(int) * total_bits);
   if (!buffer) {
     fprintf(stderr, "[NSC Encoder] Memory allocation failed\n");
     return;
   }
 
-  /* 情報ビットをコピー */
+  /* Copy information bits ------------------------------------------------- */
   for (int i = 0; i < nsc_info_len; i++) {
     buffer[i] = data[i];
   }
 
-  /* 終端 tail bits = {0,0}
-   * 畳み込み符号を確実に初期状態（STATE_A=00）へ戻すための標準手法。
-   */
+  /* Append 2 tail bits {0,0} to force encoder → STATE_A ------------------- */
   buffer[nsc_info_len] = 0;
   buffer[nsc_info_len + 1] = 0;
 
-  /* 初期状態は常に A (00) */
+  /* Initial encoder state is always STATE_A (00) -------------------------- */
   int state = STATE_A;
 
-  /* ------------------------------------------------------------
-   * Trellis に従って遷移
-   * 出力ビット:
-   *      code[2*i], code[2*i+1]
-   *
-   * state 遷移:
-   *      state = nsc_next_state[state][input_bit]
-   *
-   * 全てテーブル参照のみで、if 文による分岐は一切無し。
-   * ------------------------------------------------------------ */
+  /* Main trellis loop: branchless encoding -------------------------------- */
   for (int i = 0; i < total_bits; i++) {
 
-    int b = buffer[i]; // 入力ビット (0 or 1)
+    int b = buffer[i]; /* input bit (0 or 1) */
 
-    /* 出力 2bit を符号系列へ書き込み */
+    /* Write 2 coded output bits */
     code[2 * i] = nsc_output_bits[state][b][0];
     code[2 * i + 1] = nsc_output_bits[state][b][1];
 
-    /* 次の状態へ */
+    /* Move to next encoder state */
     state = nsc_next_state[state][b];
   }
 

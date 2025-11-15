@@ -5,64 +5,91 @@
 extern "C" {
 #endif
 
-/* ============================================================================
- *  Trellis definition for NSC (Non-Systematic Convolutional Code)
- *  ============================================================================
- *  ・2-bit shift register を持つ 4 状態の NSC 符号用 trellis。
- *  ・符号器/復号器は、このヘッダで定義される
- *        - NSCState 列挙体（状態ラベル）
- *        - nsc_output_bits[state][input_bit][2]
- *        - nsc_next_state [state][input_bit]
- *    にのみ依存するテーブル駆動型実装となる。
+/* =============================================================================
+ *  Trellis Definition for Non-Systematic Convolutional Code (NSC) — Rate 1/2
+ * =============================================================================
  *
- *  状態は 2-bit レジスタ内容に対応し、以下の 4 通り:
+ *  This header declares the trellis structure used by both the encoder and
+ *  Viterbi decoder of a 2-bit shift-register, 4-state, non-systematic
+ *  convolutional code.
  *
+ *  The implementation is fully table-driven:
+ *
+ *      - NSCState                 : Enumeration of the 4 trellis states
+ *      - nsc_output_bits[state][input_bit][2]
+ *      - nsc_next_state[state][input_bit]
+ *
+ *  These tables are defined in trellis.c and are used by:
+ *
+ *      - nsc_encoder.c (branchless encoding)
+ *      - nsc_decoder.c (hard/soft Viterbi decoding)
+ *
+ *  ---------------------------------------------------------------------------
+ *  State Representation (2-bit shift register)
+ *  ---------------------------------------------------------------------------
  *      STATE_A : 00
  *      STATE_B : 01
  *      STATE_C : 10
  *      STATE_D : 11
  *
- *  入力ビット b ∈ {0,1} に対して
+ *  For each input bit b ∈ {0,1}, the trellis specifies:
  *
- *      - 出力ビット列 (v, w)
- *      - 次状態 next_state
+ *      (1) Output coded bits (v,w)
+ *      (2) Next state of the shift register
  *
- *  を trellis.c 側で定義されたテーブルから参照する。
- * ========================================================================== */
+ *  The tables in this header provide a minimal and efficient interface for
+ *  convolutional encoding and Viterbi metric computations.
+ *
+ * =============================================================================
+ */
 
-/* --------------------------------------------------------------------------
- *  4 状態定義（2-bit shift register の内容に対応）
- * ------------------------------------------------------------------------ */
+/* -----------------------------------------------------------------------------
+ *  Enumeration of the 4 trellis states (2-bit shift-register contents)
+ * ---------------------------------------------------------------------------
+ */
 typedef enum {
-  STATE_A = 0, /* shift register = 00 */
-  STATE_B = 1, /* shift register = 01 */
-  STATE_C = 2, /* shift register = 10 */
-  STATE_D = 3  /* shift register = 11 */
+  STATE_A = 0, /* register = 00 */
+  STATE_B = 1, /* register = 01 */
+  STATE_C = 2, /* register = 10 */
+  STATE_D = 3  /* register = 11 */
 } NSCState;
 
-/* --------------------------------------------------------------------------
- *  出力ビット表 nsc_output_bits[state][input][2]
- *  ------------------------------------------------------------------------
- *  意味:
- *      nsc_output_bits[s][b][0] : MSB 側の出力ビット v
- *      nsc_output_bits[s][b][1] : LSB 側の出力ビット w
+/* =============================================================================
+ *  Output Bit Lookup Table
+ *      nsc_output_bits[state][input_bit][2]
+ * =============================================================================
  *
- *  例:
- *      const int (*tbl)[2][2] = nsc_output_bits;
- *      v = tbl[STATE_A][1][0];   // state=A, input=1 のときの v
- *      w = tbl[STATE_A][1][1];   // 同上の w
- * ------------------------------------------------------------------------ */
+ *  Output bits (v,w) produced by the convolutional encoder for each pair:
+ *
+ *      state ∈ {STATE_A, STATE_B, STATE_C, STATE_D}
+ *      input_bit ∈ {0,1}
+ *
+ *  Access example:
+ *      int v = nsc_output_bits[state][input][0];
+ *      int w = nsc_output_bits[state][input][1];
+ *
+ *  This table is used by:
+ *      - NSC encoder
+ *      - Viterbi branch metric computation (hard / soft decision)
+ *
+ * =============================================================================
+ */
 extern const int nsc_output_bits[4][2][2];
 
-/* --------------------------------------------------------------------------
- *  次状態表 nsc_next_state[state][input]
- *  ------------------------------------------------------------------------
- *  意味:
- *      nsc_next_state[s][b] : 現状態 s で入力ビット b を入れたときの次状態
+/* =============================================================================
+ *  Next-State Lookup Table
+ *      nsc_next_state[state][input_bit]
+ * =============================================================================
  *
- *  例:
- *      state = nsc_next_state[state][input_bit];
- * ------------------------------------------------------------------------ */
+ *  Determines the next state of the shift register:
+ *
+ *      new_state = nsc_next_state[current_state][input_bit]
+ *
+ *  This table eliminates all conditionals inside the encoder and Viterbi
+ *  decoder, enabling efficient branchless implementations.
+ *
+ * =============================================================================
+ */
 extern const int nsc_next_state[4][2];
 
 #ifdef __cplusplus
